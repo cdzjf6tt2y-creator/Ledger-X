@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Ledger</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #f6efe4; --surface: #fffaf3; --surface2: #f4e6d4; --border: #ead9c4;
+      --fg: #3c2b22; --muted: #8d7262; --primary: #c56a45; --primary-fg: #fff8f3;
+      --good: #3e7a52; --bad: #b55248; --warn: #b7813a;
+    }
+    [data-theme="dark"] {
+      --bg: #1c1512; --surface: #2a211c; --surface2: #3a2d26; --border: #4e3d34;
+      --fg: #f8efe6; --muted: #c9b2a2; --primary: #e8a27a; --primary-fg: #2c160e;
+      --good: #9ed4b4; --bad: #f0a59a; --warn: #f0c98a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Outfit, system-ui, sans-serif;
+      background: var(--bg); color: var(--fg);
+      background-image: radial-gradient(900px 460px at 0% -8%, color-mix(in oklab, var(--primary) 22%, transparent) 0%, transparent 62%),
+                        radial-gradient(700px 380px at 100% 0%, color-mix(in oklab, var(--warn) 20%, transparent) 0%, transparent 58%);
+      background-attachment: fixed; min-height: 100vh;
+    }
+    .app { max-width: 640px; margin: 0 auto; padding: 1.25rem 1rem 7rem; }
+    header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
+    h1 { font-family: Fraunces, serif; font-size: 2.4rem; line-height: 1; }
+    .kicker { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--primary); }
+    .muted { color: var(--muted); font-size: 0.9rem; }
+    button { font-family: inherit; cursor: pointer; border: none; }
+    .icon-btn { width: 44px; height: 44px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--fg); font-size: 1.1rem; }
+    .primary { background: var(--primary); color: var(--primary-fg); border-radius: 999px; padding: 0.55rem 1rem; font-weight: 600; font-size: 0.875rem; }
+    .ghost { background: var(--surface); color: var(--fg); border: 1px solid var(--border); border-radius: 999px; padding: 0.55rem 1rem; font-size: 0.875rem; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 1.25rem; padding: 1.15rem; margin-bottom: 1rem; }
+    .net { font-family: Fraunces, serif; font-size: 2.8rem; line-height: 1; margin: 0.4rem 0; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-top: 0.75rem; }
+    .mini { background: var(--bg); border: 1px solid var(--border); border-radius: 1rem; padding: 0.7rem; }
+    .mini .l { font-size: 0.65rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+    .mini .v { font-family: Fraunces, serif; font-size: 1.15rem; margin-top: 0.15rem; }
+    .good { color: var(--good); } .bad { color: var(--bad); } .warn { color: var(--warn); }
+    .tabs { display: flex; gap: 0.25rem; overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 0.25rem; margin-bottom: 1rem; }
+    .tab { flex: 1; min-width: 70px; text-align: center; padding: 0.5rem; border-radius: 999px; background: transparent; color: var(--muted); font-weight: 600; font-size: 0.8rem; }
+    .tab.on { background: var(--fg); color: var(--surface); }
+    .bottom { position: fixed; left: 0; right: 0; bottom: 0; background: color-mix(in oklab, var(--surface) 95%, transparent); backdrop-filter: blur(12px); border-top: 1px solid var(--border); padding: 0.3rem 0.5rem calc(0.4rem + env(safe-area-inset-bottom)); }
+    .bottom-inner { max-width: 640px; margin: 0 auto; display: flex; }
+    .bottom button { flex: 1; min-height: 48px; background: transparent; color: var(--muted); font-size: 0.7rem; font-weight: 600; border-radius: 0.75rem; }
+    .bottom button.on { color: var(--primary); }
+    input, select { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--fg); padding: 0.65rem 0.75rem; border-radius: 0.75rem; font-size: 16px; font-family: inherit; }
+    label { display: block; font-size: 0.75rem; color: var(--muted); margin-bottom: 0.25rem; }
+    .row { display: flex; justify-content: space-between; align-items: center; padding: 0.7rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+    .row:last-child { border-bottom: none; }
+    .empty { text-align: center; color: var(--muted); padding: 1.5rem 0.5rem; font-size: 0.9rem; }
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: flex-end; justify-content: center; z-index: 50; padding: 0.75rem; }
+    .modal-box { background: var(--surface); border-radius: 1.25rem; padding: 1.25rem; width: 100%; max-width: 420px; max-height: 88vh; overflow-y: auto; }
+    .progress { height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; margin-top: 0.35rem; }
+    .progress > div { height: 100%; border-radius: 4px; }
+    .chart-box { position: relative; height: 220px; margin-top: 0.5rem; }
+    .actions { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 1.5rem; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <p class="kicker">Your money, quietly</p>
+        <h1>Ledger</h1>
+        <p class="muted" style="margin-top:0.4rem;max-width:220px">A warm place for what you earn, keep, and still owe.</p>
+      </div>
+      <div style="display:flex;gap:0.4rem">
+        <button class="icon-btn" id="themeBtn" aria-label="Toggle theme">☾</button>
+        <button class="primary" id="pdfBtn">PDF</button>
+      </div>
+    </header>
+
+    <div id="notice" style="display:none;margin-bottom:1rem;padding:0.6rem 0.8rem;background:var(--surface2);border-radius:0.75rem;font-size:0.85rem;color:var(--warn)"></div>
+
+    <div id="home" class="panel"></div>
+    <div id="cash" class="panel" style="display:none"></div>
+    <div id="banks" class="panel" style="display:none"></div>
+    <div id="cards" class="panel" style="display:none"></div>
+    <div id="goals" class="panel" style="display:none"></div>
+    <div id="charts" class="panel" style="display:none"></div>
+
+    <div class="actions">
+      <button class="ghost" id="backupBtn">Backup</button>
+      <button class="ghost" id="importBtn">Import</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" />
+    </div>
+  </div>
+
+  <nav class="bottom">
+    <div class="bottom-inner">
+      <button data-tab="home" class="on">Home</button>
+      <button data-tab="cash">Cash</button>
+      <button data-tab="banks">Banks</button>
+      <button data-tab="charts">Charts</button>
+      <button data-tab="cards">Cards</button>
+      <button data-tab="goals">Goals</button>
+    </div>
+  </nav>
+
+  <div id="modal" class="modal" style="display:none">
+    <div class="modal-box">
+      <h2 id="modalTitle" style="font-family:Fraunces,serif;font-size:1.5rem;margin-bottom:1rem"></h2>
+      <div id="modalBody"></div>
+      <div style="display:flex;justify-content:flex-end;gap:0.5rem;margin-top:1rem">
+        <button class="ghost" id="modalCancel">Cancel</button>
+        <button class="primary" id="modalSave">Save</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+const KEY = "ledger_v1";
+const THEME_KEY = "ledger_theme";
+let data = { income: [], expenses: [], budgets: {}, cards: [], accounts: [], goals: [] };
+let theme = "light";
+let tab = "home";
+let cashView = "expenses";
+let draft = null;
+let charts = {};
+
+const CATS = ["Housing","Food","Transport","Utilities","Entertainment","Shopping","Health","Education","Travel","Subscriptions","Debt Payment","Other"];
+const KINDS = [{id:"chequing",label:"Chequing"},{id:"savings",label:"Savings"},{id:"investment",label:"Investment"}];
+
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function today(){ return new Date().toISOString().slice(0,10); }
+function monthKey(d){ const x=new Date(d+"T12:00:00"); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}`; }
+function curMonth(){ const n=new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`; }
+function money(n){ return new Intl.NumberFormat("en-CA",{style:"currency",currency:"CAD"}).format(n||0); }
+function interest(bal,apr){ return (bal*(apr/100))/12; }
+function upsert(hist,date,bal){ const h=hist.filter(p=>p.date!==date); h.push({date,bal}); h.sort((a,b)=>a.date.localeCompare(b.date)); return h; }
+
+function load(){
+  try{ const r=localStorage.getItem(KEY); if(r){ const v=JSON.parse(r); if(Array.isArray(v.income)) data={...data,...v,accounts:v.accounts||[],goals:v.goals||[]}; } }catch(e){}
+  const t=localStorage.getItem(THEME_KEY); if(t==="dark"||t==="light") theme=t;
+  document.documentElement.dataset.theme=theme;
+  document.getElementById("themeBtn").textContent = theme==="dark" ? "☀" : "☾";
+}
+function save(){ localStorage.setItem(KEY, JSON.stringify(data)); render(); }
+function flash(msg){ const n=document.getElementById("notice"); n.textContent=msg; n.style.display="block"; setTimeout(()=>n.style.display="none",2200); }
+
+function stats(){
+  const m=curMonth();
+  const inc=data.income.filter(i=>monthKey(i.date)===m).reduce((s,i)=>s+ +i.amount,0);
+  const exp=data.expenses.filter(e=>monthKey(e.date)===m).reduce((s,e)=>s+ +e.amount,0);
+  const assets=data.accounts.reduce((s,a)=>s+ +a.balance,0);
+  const debt=data.cards.reduce((s,c)=>s+ +c.balance,0);
+  const int=data.cards.reduce((s,c)=>s+interest(+c.balance,+c.apr),0);
+  const by={}; data.expenses.filter(e=>monthKey(e.date)===m).forEach(e=>by[e.category]=(by[e.category]||0)+ +e.amount);
+  return {inc,exp,assets,debt,int,by,left:inc-exp,net:assets-debt,leak:inc-exp-int};
+}
+
+function render(){
+  const s=stats();
+  document.querySelectorAll(".panel").forEach(p=>p.style.display="none");
+  document.getElementById(tab).style.display="block";
+  document.querySelectorAll(".bottom button").forEach(b=>b.classList.toggle("on", b.dataset.tab===tab));
+
+  if(tab==="home"){
+    const recent=[...data.income.map(i=>({...i,k:"in"})),...data.expenses.map(e=>({...e,k:"out"}))].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
+    document.getElementById("home").innerHTML=`
+      <div class="card">
+        <p class="muted" style="font-size:0.7rem;letter-spacing:0.16em;text-transform:uppercase">Net worth</p>
+        <div class="net ${s.net>=0?"":"bad"}">${money(s.net)}</div>
+        <p class="muted">${money(s.assets)} in banks and investments, minus ${money(s.debt)} on cards.</p>
+        <div class="grid2">
+          <div class="mini"><div class="l">Left this month</div><div class="v ${s.left>=0?"good":"bad"}">${money(s.left)}</div></div>
+          <div class="mini"><div class="l">${s.leak>=0?"Ahead after interest":"Losing after interest"}</div><div class="v ${s.leak>=0?"good":"bad"}">${money(s.leak)}</div></div>
+        </div>
+        <p class="muted" style="margin-top:0.6rem;font-size:0.75rem">Card interest is about ${money(s.int)} this month if balances stay put.</p>
+      </div>
+      <div class="card"><h2 style="font-family:Fraunces,serif;font-size:1.4rem;margin-bottom:0.5rem">Net worth over time</h2><div class="chart-box"><canvas id="homeNet"></canvas></div></div>
+      <div class="grid2" style="margin-bottom:1.5rem">
+        <div class="mini"><div class="l">Income</div><div class="v good">${money(s.inc)}</div></div>
+        <div class="mini"><div class="l">Spent</div><div class="v bad">${money(s.exp)}</div></div>
+      </div>
+      <div style="margin-top:2rem">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.6rem">
+          <h2 style="font-family:Fraunces,serif;font-size:1.4rem">Recent</h2>
+          <button class="ghost" style="padding:0.3rem 0.7rem;font-size:0.75rem" onclick="setTab('cash')">All cash</button>
+        </div>
+        ${recent.length? recent.map(r=>`<div class="row"><div><div>${r.description|| (r.k==="in"?"Income":"Expense")}</div><div class="muted">${r.date}</div></div><div class="${r.k==="in"?"good":"bad"}">${r.k==="in"?"+":"−"}${money(r.amount)}</div></div>`).join("") : `<div class="empty">Income and expenses you add will land here.</div>`}
+      </div>`;
+    drawNet("homeNet");
+  }
+
+  if(tab==="cash"){
+    document.getElementById("cash").innerHTML=`
+      <div class="tabs">
+        <button class="tab ${cashView==="expenses"?"on":""}" onclick="setCash('expenses')">Spent</button>
+        <button class="tab ${cashView==="income"?"on":""}" onclick="setCash('income')">Income</button>
+        <button class="tab ${cashView==="budgets"?"on":""}" onclick="setCash('budgets')">Budgets</button>
+      </div>
+      <div id="cashBody"></div>`;
+    renderCash();
+  }
+
+  if(tab==="banks"){
+    document.getElementById("banks").innerHTML=`
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+          <h2 style="font-family:Fraunces,serif;font-size:1.4rem">Accounts</h2>
+          <button class="primary" onclick="openAccount()">Add</button>
+        </div>
+        <p class="muted" style="margin-bottom:0.75rem">Chequing, savings, and investments. Log the balance when it changes.</p>
+        ${data.accounts.length? data.accounts.map(a=>`
+          <div style="border:1px solid var(--border);border-radius:1rem;padding:0.85rem;margin-bottom:0.6rem;background:var(--bg)">
+            <div style="display:flex;justify-content:space-between"><div><div class="muted" style="font-size:0.7rem;text-transform:uppercase">${KINDS.find(k=>k.id===a.kind)?.label||a.kind}</div><div style="font-weight:600">${a.name}</div></div><div style="font-family:Fraunces,serif;font-size:1.4rem">${money(a.balance)}</div></div>
+            <div style="margin-top:0.6rem;display:flex;gap:0.6rem;font-size:0.8rem">
+              <button style="color:var(--primary);font-weight:600;background:none" onclick="openLog('${a.id}')">Log balance</button>
+              <button style="color:var(--muted);background:none" onclick="openAccount('${a.id}')">Edit</button>
+              <button style="color:var(--bad);background:none" onclick="delAccount('${a.id}')">Delete</button>
+            </div>
+          </div>`).join("") : `<div class="empty">Add a chequing, savings, or investment account.</div>`}
+      </div>`;
+  }
+
+  if(tab==="cards"){
+    document.getElementById("cards").innerHTML=`
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+          <h2 style="font-family:Fraunces,serif;font-size:1.4rem">Credit cards</h2>
+          <button class="primary" onclick="openCard()">Add</button>
+        </div>
+        ${data.cards.length? data.cards.map(c=>{
+          const m=interest(+c.balance,+c.apr);
+          return `<div style="border:1px solid var(--border);border-radius:1rem;padding:0.85rem;margin-bottom:0.6rem;background:var(--bg)">
+            <div style="display:flex;justify-content:space-between"><div><div style="font-weight:600">${c.name}</div><div class="muted">${c.last4?"•••• "+c.last4+" · ":""}${c.apr}% APR</div></div><div class="bad" style="font-family:Fraunces,serif;font-size:1.4rem">${money(c.balance)}</div></div>
+            <p class="muted" style="margin-top:0.5rem;font-size:0.8rem">Interest if it stays: <span class="warn">${money(m/30)}</span>/day · <span class="warn">${money(m)}</span>/month</p>
+            <div style="margin-top:0.5rem;font-size:0.8rem"><button style="color:var(--muted);background:none" onclick="openCard('${c.id}')">Edit</button> <button style="color:var(--bad);background:none" onclick="delCard('${c.id}')">Delete</button></div>
+          </div>`;
+        }).join("") : `<div class="empty">Add a card with the balance and the interest rate.</div>`}
+      </div>`;
+  }
+
+  if(tab==="goals"){
+    document.getElementById("goals").innerHTML=`
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+          <h2 style="font-family:Fraunces,serif;font-size:1.4rem">Goals</h2>
+          <button class="primary" onclick="openGoal()">Add</button>
+        </div>
+        <p class="muted" style="margin-bottom:0.75rem">A target you are saving toward. Update the amount saved when you move money.</p>
+        ${data.goals.length? data.goals.map(g=>{
+          const pct=g.target>0?Math.min(100,(+g.saved/+g.target)*100):0;
+          return `<div style="margin-bottom:0.85rem">
+            <div style="display:flex;justify-content:space-between;font-size:0.9rem"><span style="font-weight:600">${g.name}</span><span class="muted">${money(g.saved)} / ${money(g.target)}</span></div>
+            <div class="progress"><div style="width:${pct}%;background:var(--primary)"></div></div>
+            ${g.note?`<div class="muted" style="font-size:0.75rem;margin-top:0.2rem">${g.note}</div>`:""}
+            <div style="margin-top:0.4rem;font-size:0.8rem"><button style="color:var(--muted);background:none" onclick="openGoal('${g.id}')">Edit</button> <button style="color:var(--bad);background:none" onclick="delGoal('${g.id}')">Delete</button></div>
+          </div>`;
+        }).join("") : `<div class="empty">Add a goal, like an emergency fund or a trip.</div>`}
+      </div>`;
+  }
+
+  if(tab==="charts"){
+    document.getElementById("charts").innerHTML=`
+      <div class="card"><h2 style="font-family:Fraunces,serif;font-size:1.4rem">Six months</h2><p class="muted" style="margin-bottom:0.5rem">Income against what you spent.</p><div class="chart-box"><canvas id="monthChart"></canvas></div></div>
+      <div class="card"><h2 style="font-family:Fraunces,serif;font-size:1.4rem;margin-bottom:0.5rem">Where it went</h2><div class="chart-box"><canvas id="catChart"></canvas></div></div>
+      <div class="card"><h2 style="font-family:Fraunces,serif;font-size:1.4rem">Net worth over time</h2><div class="chart-box"><canvas id="netChart"></canvas></div></div>`;
+    drawMonth(); drawCat(); drawNet("netChart");
+  }
+}
+
+function renderCash(){
+  const body=document.getElementById("cashBody");
+  if(!body) return;
+  if(cashView==="income"){
+    const rows=[...data.income].sort((a,b)=>b.date.localeCompare(a.date));
+    body.innerHTML=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem"><h2 style="font-family:Fraunces,serif">Income</h2><button class="primary" onclick="openIncome()">Add</button></div>
+      ${rows.length?rows.map(i=>`<div class="row"><div><div>${i.description||"Income"}</div><div class="muted">${i.date}</div></div><div class="good">${money(i.amount)} <button style="color:var(--muted);background:none;font-size:0.75rem" onclick="openIncome('${i.id}')">Edit</button> <button style="color:var(--bad);background:none;font-size:0.75rem" onclick="delIncome('${i.id}')">Del</button></div></div>`).join("") : `<div class="empty">No income yet.</div>`}</div>`;
+  }
+  if(cashView==="expenses"){
+    const rows=[...data.expenses].sort((a,b)=>b.date.localeCompare(a.date));
+    body.innerHTML=`<div class="card"><h2 style="font-family:Fraunces,serif;margin-bottom:0.5rem">Where it went</h2><div class="chart-box"><canvas id="expChart"></canvas></div></div>
+      <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem"><h2 style="font-family:Fraunces,serif">Expenses</h2><button class="primary" onclick="openExpense()">Add</button></div>
+      ${rows.length?rows.map(e=>`<div class="row"><div><div>${e.description||e.category}</div><div class="muted">${e.date} · ${e.category}</div></div><div class="bad">${money(e.amount)} <button style="color:var(--muted);background:none;font-size:0.75rem" onclick="openExpense('${e.id}')">Edit</button> <button style="color:var(--bad);background:none;font-size:0.75rem" onclick="delExpense('${e.id}')">Del</button></div></div>`).join("") : `<div class="empty">No expenses yet.</div>`}</div>`;
+    drawCat("expChart");
+  }
+  if(cashView==="budgets"){
+    const cats=Object.keys(data.budgets);
+    const s=stats();
+    body.innerHTML=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem"><h2 style="font-family:Fraunces,serif">Monthly limits</h2><button class="primary" onclick="openBudget()">Set</button></div>
+      ${cats.length?cats.map(c=>{
+        const lim=+data.budgets[c]||0; const spent=s.by[c]||0; const pct=lim>0?Math.min(100,(spent/lim)*100):0;
+        const col=pct>=100?"var(--bad)":pct>=75?"var(--warn)":"var(--good)";
+        return `<div style="margin-bottom:0.85rem"><div style="display:flex;justify-content:space-between;font-size:0.9rem"><span>${c}</span><span class="muted">${money(spent)} / ${money(lim)}</span></div><div class="progress"><div style="width:${pct}%;background:${col}"></div></div>
+          <div style="margin-top:0.3rem;font-size:0.8rem"><button style="color:var(--muted);background:none" onclick="openBudget('${c}')">Edit</button> <button style="color:var(--bad);background:none" onclick="delBudget('${c}')">Remove</button></div></div>`;
+      }).join("") : `<div class="empty">Set a limit so you can see a category before it runs over.</div>`}</div>`;
+  }
+}
+
+function setTab(t){ tab=t; render(); }
+function setCash(v){ cashView=v; render(); }
+
+function openModal(title, html, onSave){
+  document.getElementById("modalTitle").textContent=title;
+  document.getElementById("modalBody").innerHTML=html;
+  document.getElementById("modal").style.display="flex";
+  document.getElementById("modalSave").onclick=()=>{ onSave(); document.getElementById("modal").style.display="none"; };
+}
+document.getElementById("modalCancel").onclick=()=>document.getElementById("modal").style.display="none";
+
+function openIncome(id){
+  const item=id?data.income.find(i=>i.id===id):{id:uid(),date:today(),amount:"",description:""};
+  openModal(id?"Edit income":"Add income", `
+    <label>Date</label><input type="date" id="fDate" value="${item.date}" />
+    <label style="margin-top:0.5rem">Amount (CAD)</label><input type="number" id="fAmt" step="0.01" value="${item.amount||""}" />
+    <label style="margin-top:0.5rem">Description</label><input id="fDesc" value="${item.description||""}" placeholder="Paycheque" />
+  `, ()=>{
+    const amount=+document.getElementById("fAmt").value;
+    const date=document.getElementById("fDate").value;
+    const description=document.getElementById("fDesc").value.trim();
+    if(!date||!isFinite(amount)||amount<0) return flash("Enter a valid date and amount.");
+    const rec={...item,date,amount,description};
+    if(id) data.income=data.income.map(i=>i.id===id?rec:i); else data.income.unshift(rec);
+    save();
+  });
+}
+function delIncome(id){ if(confirm("Delete?")){ data.income=data.income.filter(i=>i.id!==id); save(); } }
+function openExpense(id){
+  const item=id?data.expenses.find(e=>e.id===id):{id:uid(),date:today(),amount:"",category:"Food",description:""};
+  openModal(id?"Edit expense":"Add expense", `
+    <label>Date</label><input type="date" id="fDate" value="${item.date}" />
+    <label style="margin-top:0.5rem">Amount (CAD)</label><input type="number" id="fAmt" step="0.01" value="${item.amount||""}" />
+    <label style="margin-top:0.5rem">Category</label><select id="fCat">${CATS.map(c=>`<option ${c===item.category?"selected":""}>${c}</option>`).join("")}</select>
+    <label style="margin-top:0.5rem">Description</label><input id="fDesc" value="${item.description||""}" />
+  `, ()=>{
+    const amount=+document.getElementById("fAmt").value;
+    const date=document.getElementById("fDate").value;
+    const category=document.getElementById("fCat").value;
+    const description=document.getElementById("fDesc").value.trim();
+    if(!date||!isFinite(amount)||amount<0) return flash("Enter a valid date and amount.");
+    const rec={...item,date,amount,category,description};
+    if(id) data.expenses=data.expenses.map(e=>e.id===id?rec:e); else data.expenses.unshift(rec);
+    save();
+  });
+}
+function delExpense(id){ if(confirm("Delete?")){ data.expenses=data.expenses.filter(e=>e.id!==id); save(); } }
+function openBudget(cat){
+  openModal("Set budget", `
+    <label>Category</label><select id="fCat">${CATS.map(c=>`<option ${c===cat?"selected":""}>${c}</option>`).join("")}</select>
+    <label style="margin-top:0.5rem">Monthly limit (CAD)</label><input type="number" id="fAmt" step="0.01" value="${cat?data.budgets[cat]||"":""}" />
+  `, ()=>{
+    const amount=+document.getElementById("fAmt").value;
+    const c=document.getElementById("fCat").value;
+    if(!isFinite(amount)||amount<0) return flash("Enter a budget amount.");
+    data.budgets[c]=amount; save();
+  });
+}
+function delBudget(c){ if(confirm("Remove?")){ delete data.budgets[c]; save(); } }
+function openCard(id){
+  const item=id?data.cards.find(c=>c.id===id):{id:uid(),name:"",last4:"",balance:"",apr:19.99};
+  openModal(id?"Edit card":"Add card", `
+    <label>Card name</label><input id="fName" value="${item.name||""}" />
+    <label style="margin-top:0.5rem">Last 4 digits</label><input id="fLast" maxlength="4" value="${item.last4||""}" />
+    <label style="margin-top:0.5rem">Balance (CAD)</label><input type="number" id="fBal" step="0.01" value="${item.balance||""}" />
+    <label style="margin-top:0.5rem">APR (%)</label><input type="number" id="fApr" step="0.01" value="${item.apr||""}" />
+  `, ()=>{
+    const name=document.getElementById("fName").value.trim();
+    const balance=+document.getElementById("fBal").value;
+    const apr=+document.getElementById("fApr").value;
+    const last4=document.getElementById("fLast").value.replace(/\D/g,"").slice(0,4);
+    if(!name||!isFinite(balance)||balance<0||!isFinite(apr)||apr<0) return flash("Name, balance, and APR are required.");
+    const rec={...item,name,balance,apr,last4};
+    if(id) data.cards=data.cards.map(c=>c.id===id?rec:c); else data.cards.push(rec);
+    save();
+  });
+}
+function delCard(id){ if(confirm("Delete?")){ data.cards=data.cards.filter(c=>c.id!==id); save(); } }
+function openAccount(id){
+  const item=id?data.accounts.find(a=>a.id===id):{id:uid(),name:"",kind:"chequing",balance:"",history:[]};
+  openModal(id?"Edit account":"Add account", `
+    <label>Name</label><input id="fName" value="${item.name||""}" placeholder="Everyday chequing" />
+    <label style="margin-top:0.5rem">Type</label><select id="fKind">${KINDS.map(k=>`<option value="${k.id}" ${k.id===item.kind?"selected":""}>${k.label}</option>`).join("")}</select>
+    <label style="margin-top:0.5rem">Balance today (CAD)</label><input type="number" id="fBal" step="0.01" value="${item.balance||""}" />
+  `, ()=>{
+    const name=document.getElementById("fName").value.trim();
+    const balance=+document.getElementById("fBal").value;
+    const kind=document.getElementById("fKind").value;
+    if(!name||!isFinite(balance)) return flash("Name and balance are required.");
+    const history=upsert(item.history||[], today(), balance);
+    const rec={...item,name,balance,kind,history};
+    if(id) data.accounts=data.accounts.map(a=>a.id===id?rec:a); else data.accounts.push(rec);
+    save();
+  });
+}
+function openLog(id){
+  const a=data.accounts.find(x=>x.id===id);
+  openModal("Log balance", `
+    <label>Date</label><input type="date" id="fDate" value="${today()}" />
+    <label style="margin-top:0.5rem">Balance that day (CAD)</label><input type="number" id="fBal" step="0.01" value="${a.balance}" />
+  `, ()=>{
+    const date=document.getElementById("fDate").value;
+    const balance=+document.getElementById("fBal").value;
+    if(!date||!isFinite(balance)) return flash("Enter a date and balance.");
+    data.accounts=data.accounts.map(x=>x.id===id?{...x,balance,history:upsert(x.history,date,balance)}:x);
+    save();
+  });
+}
+function delAccount(id){ if(confirm("Delete?")){ data.accounts=data.accounts.filter(a=>a.id!==id); save(); } }
+function openGoal(id){
+  const item=id?data.goals.find(g=>g.id===id):{id:uid(),name:"",target:"",saved:"",note:""};
+  openModal(id?"Edit goal":"Add goal", `
+    <label>Goal</label><input id="fName" value="${item.name||""}" placeholder="Emergency fund" />
+    <label style="margin-top:0.5rem">Target (CAD)</label><input type="number" id="fTgt" step="0.01" value="${item.target||""}" />
+    <label style="margin-top:0.5rem">Saved so far (CAD)</label><input type="number" id="fSav" step="0.01" value="${item.saved||""}" />
+    <label style="margin-top:0.5rem">Note</label><input id="fNote" value="${item.note||""}" />
+  `, ()=>{
+    const name=document.getElementById("fName").value.trim();
+    const target=+document.getElementById("fTgt").value;
+    const saved=+document.getElementById("fSav").value;
+    const note=document.getElementById("fNote").value.trim();
+    if(!name||!isFinite(target)||target<=0||!isFinite(saved)||saved<0) return flash("Name, target, and amount saved are required.");
+    const rec={...item,name,target,saved,note};
+    if(id) data.goals=data.goals.map(g=>g.id===id?rec:g); else data.goals.push(rec);
+    save();
+  });
+}
+function delGoal(id){ if(confirm("Delete?")){ data.goals=data.goals.filter(g=>g.id!==id); save(); } }
+
+function netSeries(){
+  const dates=new Set();
+  data.accounts.forEach(a=>a.history.forEach(p=>dates.add(p.date)));
+  const debt=data.cards.reduce((s,c)=>s+ +c.balance,0);
+  return [...dates].sort().map(d=>{
+    let assets=0;
+    data.accounts.forEach(a=>{
+      const prior=[...a.history].filter(p=>p.date<=d).at(-1);
+      if(prior) assets+= +prior.bal;
+    });
+    return {date:d.slice(5), net:Math.round(assets-debt)};
+  });
+}
+function drawNet(id){
+  const ctx=document.getElementById(id); if(!ctx) return;
+  if(charts[id]) charts[id].destroy();
+  const series=netSeries();
+  if(series.length<2){ ctx.parentElement.innerHTML=`<div class="empty">Log a bank balance on two different days and this line will draw itself.</div>`; return; }
+  charts[id]=new Chart(ctx,{type:"line",data:{labels:series.map(s=>s.date),datasets:[{label:"Net worth",data:series.map(s=>s.net),borderColor:getComputedStyle(document.documentElement).getPropertyValue("--primary").trim()||"#c56a45",backgroundColor:"transparent",tension:0.3,fill:false,pointRadius:0,borderWidth:2.4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:"#ead9c4"}}}}});
+}
+function drawMonth(){
+  const ctx=document.getElementById("monthChart"); if(!ctx) return;
+  if(charts.month) charts.month.destroy();
+  const now=new Date(); const rows=[];
+  for(let i=5;i>=0;i--){ const d=new Date(now.getFullYear(),now.getMonth()-i,1); const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+    rows.push({name:d.toLocaleString("en-CA",{month:"short"}), Income:data.income.filter(x=>monthKey(x.date)===k).reduce((s,x)=>s+ +x.amount,0), Spent:data.expenses.filter(x=>monthKey(x.date)===k).reduce((s,x)=>s+ +x.amount,0)}); }
+  charts.month=new Chart(ctx,{type:"bar",data:{labels:rows.map(r=>r.name),datasets:[{label:"Income",data:rows.map(r=>r.Income),backgroundColor:"#3e7a52",borderRadius:6},{label:"Spent",data:rows.map(r=>r.Spent),backgroundColor:"#b55248",borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"}},scales:{x:{grid:{display:false}},y:{grid:{color:"#ead9c4"}}}}});
+}
+function drawCat(id="catChart"){
+  const ctx=document.getElementById(id); if(!ctx) return;
+  if(charts[id]) charts[id].destroy();
+  const s=stats(); const labels=Object.keys(s.by); const vals=Object.values(s.by);
+  if(!labels.length){ ctx.parentElement.innerHTML=`<div class="empty">No spending this month yet.</div>`; return; }
+  charts[id]=new Chart(ctx,{type:"bar",data:{labels,datasets:[{label:"Spent",data:vals,backgroundColor:"#b55248",borderRadius:6}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:"#ead9c4"}},y:{grid:{display:false}}}}});
+}
+
+document.getElementById("themeBtn").onclick=()=>{
+  theme=theme==="dark"?"light":"dark";
+  document.documentElement.dataset.theme=theme;
+  localStorage.setItem(THEME_KEY,theme);
+  document.getElementById("themeBtn").textContent=theme==="dark"?"☀":"☾";
+  render();
+};
+document.getElementById("backupBtn").onclick=()=>{
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`ledger-backup-${today()}.json`; a.click();
+};
+document.getElementById("importBtn").onclick=()=>document.getElementById("importFile").click();
+document.getElementById("importFile").onchange=e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader(); r.onload=()=>{ try{ const v=JSON.parse(r.result); if(!Array.isArray(v.income)) throw 0; if(!confirm("Replace everything with this backup?")) return; data={...data,...v,accounts:v.accounts||[],goals:v.goals||[]}; save(); flash("Imported."); }catch{ flash("That file is not a Ledger backup."); } }; r.readAsText(f); e.target.value="";
+};
+document.getElementById("pdfBtn").onclick=()=>{
+  const s=stats();
+  const w=window.open("","_blank");
+  w.document.write(`<html><head><title>Ledger ${curMonth()}</title><style>body{font-family:system-ui;padding:2rem;color:#3c2b22}h1{font-family:Georgia}table{width:100%;border-collapse:collapse;margin:1rem 0}td,th{text-align:left;padding:0.4rem;border-bottom:1px solid #ead9c4}</style></head><body>
+    <h1>Ledger</h1><p>${curMonth()} · ${today()}</p>
+    <p><strong>Net worth</strong> ${money(s.net)}</p>
+    <p><strong>This month after spending and interest</strong> ${money(s.leak)}</p>
+    <h2>Accounts</h2>${data.accounts.map(a=>`<div>${a.name} (${a.kind}) ${money(a.balance)}</div>`).join("")||"None"}
+    <h2>Goals</h2>${data.goals.map(g=>`<div>${g.name}: ${money(g.saved)} of ${money(g.target)}</div>`).join("")||"None"}
+    <h2>Income</h2>${data.income.filter(i=>monthKey(i.date)===curMonth()).map(i=>`<div>${i.date} ${i.description||"Income"} ${money(i.amount)}</div>`).join("")||"None"}
+    <h2>Expenses</h2>${data.expenses.filter(e=>monthKey(e.date)===curMonth()).map(e=>`<div>${e.date} ${e.category} ${e.description||""} ${money(e.amount)}</div>`).join("")||"None"}
+    <h2>Cards</h2>${data.cards.map(c=>`<div>${c.name} ${money(c.balance)} APR ${c.apr}% interest ${money(interest(+c.balance,+c.apr))}/mo</div>`).join("")||"None"}
+    <p style="margin-top:2rem;font-size:0.8rem;color:#8d7262">Interest is an estimate. Print this page to save as PDF.</p>
+  </body></html>`);
+  w.document.close(); w.focus(); setTimeout(()=>w.print(),300);
+};
+
+document.querySelectorAll(".bottom button").forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+load(); render();
+</script>
+</body>
+</html>
